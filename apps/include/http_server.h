@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -35,12 +35,14 @@
 #  include <signal.h>
 #  define MAXERRLEN 1000 /* limit error text sent to syslog to 1000 bytes */
 # else
+#  undef LOG_DEBUG
 #  undef LOG_INFO
 #  undef LOG_WARNING
 #  undef LOG_ERR
-#  define LOG_INFO      0
-#  define LOG_WARNING   1
-#  define LOG_ERR       2
+#  define LOG_DEBUG     7
+#  define LOG_INFO      6
+#  define LOG_WARNING   4
+#  define LOG_ERR       3
 # endif
 
 /*-
@@ -60,35 +62,56 @@ void log_message(const char *prog, int level, const char *fmt, ...);
  * returns a BIO for accepting requests, NULL on error
  */
 BIO *http_server_init_bio(const char *prog, const char *port);
+
 /*-
  * Accept an ASN.1-formatted HTTP request
  * it: the expected request ASN.1 type
  * preq: pointer to variable where to place the parsed request
+ * ppath: pointer to variable where to place the request path, or NULL
  * pcbio: pointer to variable where to place the BIO for sending the response to
  * acbio: the listening bio (typically as returned by http_server_init_bio())
- * prog: the name of the current app
- * accept_get: wheter to accept GET requests (in addition to POST requests)
+ * found_keep_alive: for returning flag if client requests persistent connection
+ * prog: the name of the current app, for diagnostics only
+ * port: the local port listening to, for diagnostics only
+ * accept_get: whether to accept GET requests (in addition to POST requests)
  * timeout: connection timeout (in seconds), or 0 for none/infinite
- * returns 0 in case caller should retry, then *preq == *pcbio == NULL
- * returns -1 on fatal error; also in this case *preq == *pcbio == NULL
- * returns 1 otherwise. In this case it is guaranteed that *pcbio != NULL
- *                      while *preq == NULL if and only if request is invalid
+ * returns 0 in case caller should retry, then *preq == *ppath == *pcbio == NULL
+ * returns -1 on fatal error; also then holds *preq == *ppath == *pcbio == NULL
+ * returns 1 otherwise. In this case it is guaranteed that *pcbio != NULL while
+ * *ppath == NULL and *preq == NULL if and only if the request is invalid,
+ * On return value 1 the caller is responsible for sending an HTTP response,
+ * using http_server_send_asn1_resp() or http_server_send_status().
+ * The caller must free any non-NULL *preq, *ppath, and *pcbio pointers.
  */
 int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
-                        BIO **pcbio, BIO *acbio,
-                        const char *prog, int accept_get, int timeout);
+                             char **ppath, BIO **pcbio, BIO *acbio,
+                             int *found_keep_alive,
+                             const char *prog, const char *port,
+                             int accept_get, int timeout);
+
 /*-
  * Send an ASN.1-formatted HTTP response
  * cbio: destination BIO (typically as returned by http_server_get_asn1_req())
  *       note: cbio should not do an encoding that changes the output length
+ * keep_alive: grant persistent connnection
  * content_type: string identifying the type of the response
  * it: the response ASN.1 type
- * valit: the response ASN.1 type
  * resp: the response to send
  * returns 1 on success, 0 on failure
  */
-int http_server_send_asn1_resp(BIO *cbio, const char *content_type,
+int http_server_send_asn1_resp(BIO *cbio, int keep_alive,
+                               const char *content_type,
                                const ASN1_ITEM *it, const ASN1_VALUE *resp);
+
+/*-
+ * Send a trivial HTTP response, typically to report an error or OK
+ * cbio: destination BIO (typically as returned by http_server_get_asn1_req())
+ * status: the status code to send
+ * reason: the corresponding human-readable string
+ * returns 1 on success, 0 on failure
+ */
+int http_server_send_status(BIO *cbio, int status, const char *reason);
+
 # endif
 
 # ifdef HTTP_DAEMON

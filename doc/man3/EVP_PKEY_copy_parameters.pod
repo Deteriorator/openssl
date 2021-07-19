@@ -14,8 +14,13 @@ EVP_PKEY_cmp - public key parameter and comparison functions
  int EVP_PKEY_copy_parameters(EVP_PKEY *to, const EVP_PKEY *from);
 
  int EVP_PKEY_parameters_eq(const EVP_PKEY *a, const EVP_PKEY *b);
- int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b);
  int EVP_PKEY_eq(const EVP_PKEY *a, const EVP_PKEY *b);
+
+Deprecated since OpenSSL 3.0, can be hidden entirely by defining
+B<OPENSSL_API_COMPAT> with a suitable version value, see
+L<openssl_user_macros(7)>:
+
+ int EVP_PKEY_cmp_parameters(const EVP_PKEY *a, const EVP_PKEY *b);
  int EVP_PKEY_cmp(const EVP_PKEY *a, const EVP_PKEY *b);
 
 =head1 DESCRIPTION
@@ -46,6 +51,10 @@ Since OpenSSL private keys contain public key components too the function
 EVP_PKEY_eq() can also be used to determine if a private key matches
 a public key.
 
+The deprecated functions EVP_PKEY_cmp() and EVP_PKEY_cmp_parameters() differ in
+their return values  compared to other _cmp() functions. They are aliases for
+EVP_PKEY_eq() and EVP_PKEY_parameters_eq().
+
 =head1 RETURN VALUES
 
 The function EVP_PKEY_missing_parameters() returns 1 if the public key
@@ -55,7 +64,8 @@ doesn't use parameters.
 These functions EVP_PKEY_copy_parameters() returns 1 for success and 0 for
 failure.
 
-The function EVP_PKEY_parameters_eq() and EVP_PKEY_eq() return 1 if their
+The functions EVP_PKEY_cmp_parameters(), EVP_PKEY_parameters_eq(), 
+EVP_PKEY_cmp() and EVP_PKEY_eq() return 1 if their
 inputs match, 0 if they don't match, -1 if the key types are different and
 -2 if the operation is not supported.
 
@@ -66,15 +76,15 @@ L<EVP_PKEY_keygen(3)>
 
 =head1 HISTORY
 
-The function EVP_PKEY_cmp was deprecated and renamed to B<EVP_PKEY_eq> and
-EVP_PKEY_cmp_parameters was deprecated and renamed to B<EVP_PKEY_parameters_eq>
-(without changing semantics) in OpenSSL 3.0.
-This was done to avoid confusion on their return values with other _cmp()
-functions that return 0 in case their arguments are equal.
+The EVP_PKEY_cmp() and EVP_PKEY_cmp_parameters() functions were deprecated in
+OpenSSL 3.0.
+
+The EVP_PKEY_eq() and EVP_PKEY_parameters_eq() were added in OpenSSL 3.0 to
+replace EVP_PKEY_cmp() and EVP_PKEY_cmp_parameters().
 
 =head1 COPYRIGHT
 
-Copyright 2006-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
